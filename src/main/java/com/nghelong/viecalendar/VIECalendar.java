@@ -4,6 +4,10 @@ import java.util.Date;
 import org.javatuples.*;
 
 public class VIECalendar {
+    // 2415021 = julian day number of 1/1/1900 (at noon)
+    private static final double SOC_INTERVAL = 29.530588853;
+    // 29.530588853 = Soc interval
+    private static final double JDN_1900 = 2415021.076998695;
     /**
      *  Get Julian day number from the specific date
      *  Base date: 1/1/4713 BC Julian Calendar or 24/11/4714 BC Gregorian Calendar
@@ -45,7 +49,15 @@ public class VIECalendar {
         year = (int) (b*100 + d - 4800 + m/10);
         return Triplet.with(year,month,day);
     }
-    static public int getSoc(int times, int timeZone){
+
+    /**
+     * Soc is when Sun, Moon, Earth are in a straight line
+     * Get the time of the times of Soc from 1/1/1900 in timezone
+     * @param times the times of Soc from 1/1/1900
+     * @param timezone the timezone
+     * @return Julian day number of the Soc
+     */
+    static public int getSoc(int times, int timezone){
         double t = times/1236.85; //Time in Julian centuries from 1900 January 0.5
         double t2 = t*t;
         double t3 = t2*t;
@@ -69,7 +81,7 @@ public class VIECalendar {
             delta= -0.000278 + 0.000265*t + 0.000262*t2;
         };
         double jdNew = jd1 + c1 - delta;
-        return (int)Math.floor(jdNew + 0.5 + timeZone/24.0);
+        return (int)Math.floor(jdNew + 0.5 + timezone/24.0);
     }
     public static int getSunLong(long jdn, int timezone){
         double t = (jdn - 2451545.5 - timezone/24.0) / 36525; // Time in Julian centuries from 2000-01-01 12:00:00 GMT
@@ -119,7 +131,6 @@ public class VIECalendar {
      * @return Quartet with (year,month, day, isLeapYear) of lunar date
      */
     public static Quartet<Integer,Integer,Integer,Boolean> solar2Lunar(int y, int m, int d, int timezone){
-        //var k, dayNumber, monthStart, a11, b11, lunarDay, lunarMonth, lunarYear, lunarLeap;
         Calendar calendar = Calendar.getInstance();
         calendar.set(y,m-1,d);
         long jdn = VIECalendar.getJulianDayNumber(calendar.getTime()); //dayNumber
@@ -159,5 +170,55 @@ public class VIECalendar {
             ly -= 1;
         }
         return Quartet.with(ly,lm,ld,isLeapYear);
+    }
+
+    /**
+     * Convert a lunar date to a solar date
+     * @param lunarYear the lunar year
+     * @param lunarMonth the lunar month
+     * @param lunarDay the lunar day
+     * @param isLeap this year is a leap year
+     * @param timezone the timezone
+     * @return A triplet with (year,month,day) for solar date
+     */
+    public static Triplet<Integer,Integer,Integer> lunar2Sonar(int lunarYear, int lunarMonth, int lunarDay, boolean isLeap, int timezone) {
+         int leapMonth;
+
+         //The date of the first date of the 11th lunar month of the previous year
+         int   a11 = VIECalendar.getLunarMonth11(lunarYear + ((lunarMonth < 11) ? -1: 0), timezone);
+
+        //The date of the first date of the 11th lunar month of the year
+         int   b11 = VIECalendar.getLunarMonth11(lunarYear+ ((lunarMonth < 11) ? 0: 1), timezone);
+
+        int off = lunarMonth - 11;
+        if (off < 0) {
+            off += 12;
+        }
+        if (b11 - a11 > 365) { //leap year
+            // The number months between the leap month and the 11th lunar month of the previous year
+           int leapOff = VIECalendar.getLeapMonthOffset(a11, timezone);
+
+            // The leap month from the first month of this year
+            leapMonth = leapOff - 2; // the 11th month, the 12th month
+
+            //the leap month is the 11th month or the 12th month
+            if (leapMonth < 0) {
+                leapMonth += 12;
+            }
+            if (isLeap && lunarMonth != leapMonth) {
+                return  Triplet.with(0,0,0); //Error case
+            } else if (isLeap || off >= leapOff) {
+                off += 1;
+            }
+        }
+
+        // Number of Soc from a11 to 1/1/1900
+        // 0.5 is a half of day -> calculate at midnight
+        int k = (int) Math.floor(0.5 + (a11 - JDN_1900) / SOC_INTERVAL);
+
+        //Find the date of start lunar month
+        int monthStart = VIECalendar.getSoc(k+off, timezone);
+
+        return  VIECalendar.getDate(monthStart + lunarDay - 1);
     }
 }
