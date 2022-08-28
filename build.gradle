@@ -1,0 +1,17 @@
+plugins {
+    id 'java-library'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
+    implementation 'org.javatuples:javatuples:1.2'
+
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
