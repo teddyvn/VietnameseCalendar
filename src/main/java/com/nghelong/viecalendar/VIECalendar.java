@@ -4,10 +4,13 @@ import java.util.Date;
 import org.javatuples.*;
 
 public class VIECalendar {
-    // 2415021 = julian day number of 1/1/1900 (at noon)
+    // 29.530588853 = Soc interval, number of days in one lunar month
     private static final double SOC_INTERVAL = 29.530588853;
-    // 29.530588853 = Soc interval
+
+    // 2415021 = julian day number of 1/1/1900 (at noon)
     private static final double JDN_1900 = 2415021.076998695;
+    //2451545.5 = julian day number of 1/1/2000 (at noon)
+    private static final double JDN_2000 = 2451545.5;
     /**
      *  Get Julian day number from the specific date
      *  Base date: 1/1/4713 BC Julian Calendar or 24/11/4714 BC Gregorian Calendar
@@ -84,7 +87,7 @@ public class VIECalendar {
         return (int)Math.floor(jdNew + 0.5 + timezone/24.0);
     }
     public static int getSunLong(long jdn, int timezone){
-        double t = (jdn - 2451545.5 - timezone/24.0) / 36525; // Time in Julian centuries from 2000-01-01 12:00:00 GMT
+        double t = (jdn - JDN_2000 - timezone/24.0) / 36525; // Time in Julian centuries from 2000-01-01 12:00:00 GMT
         double t2 = t*t;
         double dr = Math.PI/180; // degree to radian
         double m = 357.52910 + 35999.05030*t - 0.0001559*t2 - 0.00000048*t*t2; // mean anomaly, degree
@@ -99,9 +102,9 @@ public class VIECalendar {
     public static int getLunarMonth11(int year,int timezone){
         Calendar calendar = Calendar.getInstance();
         calendar.set(year, Calendar.DECEMBER, 31);//31/12/year
-        long jdnFrom1990 = 2415021;
+        long jdnFrom1990 = (long)Math.floor(JDN_1900);
         long off = VIECalendar.getJulianDayNumber(calendar.getTime()) - jdnFrom1990;
-        int k = (int) Math.floor(off / 29.530588853);
+        int k = (int) Math.floor(off / SOC_INTERVAL);
         int nm = VIECalendar.getSoc(k, timezone);
         int sunPosition = VIECalendar.getSunLong(nm, timezone); // sun longitude at local midnight
         if (sunPosition >= 9) {
@@ -110,7 +113,7 @@ public class VIECalendar {
         return nm;
     }
     public static int getLeapMonthOffset(int a11, int timezone){
-        int k = (int)Math.floor((a11 - 2415021.076998695) / 29.530588853 + 0.5);
+        int k = (int)Math.floor((a11 - JDN_1900) / SOC_INTERVAL + 0.5);
         int last = 0;
         int month = 1; // We start with the month following lunar month 11
         int arc = getSunLong(getSoc(k+month,timezone),timezone);
@@ -134,7 +137,7 @@ public class VIECalendar {
         Calendar calendar = Calendar.getInstance();
         calendar.set(y,m-1,d);
         long jdn = VIECalendar.getJulianDayNumber(calendar.getTime()); //dayNumber
-        int k = (int)Math.floor((jdn - 2415021.076998695) / 29.530588853);
+        int k = (int)Math.floor((jdn - JDN_1900) / SOC_INTERVAL);
          int monthStart = VIECalendar.getSoc(k+1, timezone);
 
         if (monthStart > jdn) {
